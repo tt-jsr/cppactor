@@ -1,0 +1,150 @@
+CPPACTOR
+
+cppactor implements an actor framework for C++ programs.
+
+FEATURES
+    The framework supports multiple thread pools for processing messages. See
+    below for why multiple pools may be useful.
+
+    Message passing is through heap allocated data structures and stored in a
+    lockless queue within each actor. No locks are ever aquired, or virtual
+    functions called, by the framework when processing messages. This maximes
+    performance of the framework.
+
+    Messages may be sent to a particular actor, or have the framework
+    choose the actor based on queue length (least amount). Messages may also be
+    broadcasted to a group of actors.
+
+    Two kinds of timers are supported, non-actor and actor. Non actor timers are executed 
+    in the context of the timer thread, an actor timer is processed in the context
+    of an actor's thread and is therefore concurency safe.
+
+NOT SUPPORTED
+    This framework makes no attempt to provide a "true" implementation of an actor
+    framework. Indeed this is deliberate. Most frameworks implement message
+    copying to provide thread safety, this does not do so to maximize
+    performance. There is no distributive support for actors, as such, they must all exist
+    within the same process.
+
+OVERVIEW
+    For an example program, see test/main.cpp
+
+    [to be completed...]
+
+CLASS SYNOPSIS
+    class framework     <framework.h>
+        [to be written]
+
+    class actor         <actor.h>
+        [to be written]
+
+    class message       <message.h>
+        [to be written]
+
+FUNCTION SYNOPSIS
+    createpool()    <utility.h>
+
+    template <typename...ActorTypes>
+    void create_pool(uint32_t poolid, int nThreads)
+        Creates a new threadpool. The threads will be started upon creation.
+        Arguments:
+            poolid: 
+                An application defined id to identify the pool.
+          nThreads: 
+                The number of threads to be created
+          template<typename...ActorTypes>
+                List of actor types this pool will manage.
+        Returns:
+            None
+
+        Example:
+            class Foo : public actor {...};
+            class Foolish : public actor {...};
+
+            create_pool<Foo, Foolish>(1, 3);
+
+    -------------------------------------------------------------------
+    create_actor  <utility.h>
+
+    template <typename Actor, typename...Args>
+    instrusive_ptr<Actor> create_actor(uint32_t poolid, Args&&... args)
+
+        Creates a new actor. Actors must be created by this function and derived from
+        class actor
+
+        Arguments:
+            poolid:
+                The id of the pool this actor will be managed by
+            args:
+                Argument list to be passed to the constructor of your actor
+
+            typename Actor
+                The type of actor to be created.
+
+        Returns:
+            instrusive_ptr<Actor>. A reference counted object to the actor
+
+        Example:
+            class Foo : public actor {...};
+
+            actor_iptr a = create_actor<Foo>();
+         or
+            instrusive_ptr<Foo> a = create_actor<Foo>();
+    -------------------------------------------------------------------
+    find_any    <utility.h>
+
+    template<typename Actor=actor, typename ActorCont>
+    auto find_any(ActorCont& actors)->Actor *
+
+        Finds an actor to post a message to. Returns an actor with the least
+        items on it's message queue.
+
+        Arguments:
+            actors:
+                An stl container of actors, one of which will be returned.
+
+            typename Actor
+                Defines the return type of this function. If not specified
+                this will return actor_iptr (defined as instrusive_ptr<actor>)
+
+                Otherwise this function will static_cast<> the item in the container
+                and return Actor *
+
+        Returns:
+            The the value of Actor *
+
+        Example:
+             std::vector<MyActors> vec;
+             class MyMessage : public cppactor message {}
+
+             find_any(vec)->enqueue(new MyMessage(...));
+
+             find_any<MyActor>(vec)->Foo();
+                
+    -------------------------------------------------------------------
+    broadcast       <utility.h>
+
+    template <typename MessageType, typename ActorCont, typename... Args>
+    void broadcast(ActorCont& actors, Args&&...args)
+
+        Broadcast a message to all actors in the container.
+
+        The arguments are not copied. If you pass a pointer, all actors will
+        share the same pointer
+
+        Arguments:
+            actors: an stl container containing the actors to broadcast to.
+            args: variable arguments passed to the constructor of MessageType
+
+            typename MessageType: The type of message to be sent.
+        
+        Returns:
+            None
+
+        Example:
+             std::vector<MyActors> vec;
+             class MyMessage : public cppactor message {}
+
+             broadcast<MyMessage>(vec, "Argument", ...)
+            
+            
